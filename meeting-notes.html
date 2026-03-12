@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MeetingMind</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a26;
+    --border: #2a2a3d;
+    --accent: #7c6af7;
+    --accent2: #4ecdc4;
+    --accent3: #ff6b6b;
+    --text: #e8e8f0;
+    --text-muted: #6b6b8a;
+    --glow: rgba(124, 106, 247, 0.3);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'DM Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Ambient background */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: 
+      radial-gradient(ellipse at 20% 20%, rgba(124,106,247,0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 80%, rgba(78,205,196,0.06) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 0 0 120px;
+    min-height: 100vh;
+  }
+
+  /* Header */
+  .header {
+    padding: 52px 24px 20px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+
+  .logo span {
+    color: var(--accent);
+  }
+
+  .version {
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  /* API Key section */
+  .api-section {
+    margin: 0 16px 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+  }
+
+  .api-label {
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+
+  .api-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .api-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .api-input:focus { border-color: var(--accent); }
+
+  .api-btn {
+    background: var(--accent);
+    border: none;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-family: 'Syne', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: white;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .api-status {
+    font-size: 10px;
+    margin-top: 8px;
+    color: var(--text-muted);
+  }
+
+  .api-status.ok { color: var(--accent2); }
+
+  /* Recording card */
+  .record-card {
+    margin: 0 16px 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 28px 24px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .record-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(124,106,247,0.1) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .timer {
+    font-family: 'Syne', sans-serif;
+    font-size: 48px;
+    font-weight: 800;
+    letter-spacing: -2px;
+    color: var(--text);
+    margin-bottom: 6px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .timer.active { color: var(--accent3); }
+
+  .timer-label {
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 28px;
+  }
+
+  /* Waveform */
+  .waveform {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    height: 40px;
+    margin-bottom: 28px;
+  }
+
+  .wave-bar {
+    width: 3px;
+    border-radius: 2px;
+    background: var(--border);
+    height: 8px;
+    transition: height 0.1s;
+  }
+
+  .recording .wave-bar {
+    animation: wave 0.8s ease-in-out infinite;
+    background: var(--accent);
+  }
+
+  .recording .wave-bar:nth-child(2) { animation-delay: 0.1s; }
+  .recording .wave-bar:nth-child(3) { animation-delay: 0.2s; }
+  .recording .wave-bar:nth-child(4) { animation-delay: 0.3s; }
+  .recording .wave-bar:nth-child(5) { animation-delay: 0.4s; }
+  .recording .wave-bar:nth-child(6) { animation-delay: 0.3s; }
+  .recording .wave-bar:nth-child(7) { animation-delay: 0.2s; }
+  .recording .wave-bar:nth-child(8) { animation-delay: 0.1s; }
+  .recording .wave-bar:nth-child(9) { animation-delay: 0s; }
+
+  @keyframes wave {
+    0%, 100% { height: 6px; }
+    50% { height: 32px; }
+  }
+
+  /* Record button */
+  .record-btn {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+    position: relative;
+    transition: transform 0.15s, box-shadow 0.2s;
+  }
+
+  .record-btn:active { transform: scale(0.94); }
+
+  .record-btn.idle {
+    background: var(--accent);
+    box-shadow: 0 0 0 0 var(--glow);
+  }
+
+  .record-btn.recording {
+    background: var(--accent3);
+    box-shadow: 0 0 30px rgba(255,107,107,0.4);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 20px rgba(255,107,107,0.3); }
+    50% { box-shadow: 0 0 40px rgba(255,107,107,0.6); }
+  }
+
+  .record-btn svg { width: 28px; height: 28px; }
+
+  .record-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+  }
+
+  /* Transcript */
+  .transcript-section {
+    margin: 0 16px 20px;
+  }
+
+  .section-label {
+    font-size: 9px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding: 0 4px;
+    margin-bottom: 10px;
+  }
+
+  .transcript-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    min-height: 100px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .transcript-box.empty {
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  .transcript-box textarea {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text);
+    resize: none;
+    min-height: 100px;
+  }
+
+  /* Analyze button */
+  .analyze-btn {
+    display: block;
+    width: calc(100% - 32px);
+    margin: 0 16px 20px;
+    padding: 18px;
+    background: linear-gradient(135deg, var(--accent), #5b4fd4);
+    border: none;
+    border-radius: 16px;
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: white;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: opacity 0.2s, transform 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .analyze-btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+    pointer-events: none;
+  }
+
+  .analyze-btn:active { transform: scale(0.98); opacity: 0.9; }
+  .analyze-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Results */
+  .results-section {
+    margin: 0 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    overflow: hidden;
+    animation: fadeUp 0.4s ease;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .result-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .result-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .icon-summary { background: rgba(124,106,247,0.2); }
+  .icon-actions { background: rgba(78,205,196,0.2); }
+
+  .result-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+
+  .result-body {
+    padding: 16px 18px;
+    font-size: 13px;
+    line-height: 1.75;
+    color: var(--text);
+  }
+
+  .action-item {
+    display: flex;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    align-items: flex-start;
+  }
+
+  .action-item:last-child { border-bottom: none; }
+
+  .action-check {
+    width: 20px;
+    height: 20px;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    flex-shrink: 0;
+    margin-top: 1px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  .action-check.done {
+    background: var(--accent2);
+    border-color: var(--accent2);
+  }
+
+  .action-text {
+    font-size: 13px;
+    line-height: 1.6;
+    flex: 1;
+  }
+
+  .action-text.done { 
+    text-decoration: line-through; 
+    color: var(--text-muted);
+  }
+
+  /* Loading */
+  .loading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 20px 18px;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  .spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Error */
+  .error-msg {
+    margin: 0 16px;
+    padding: 14px 16px;
+    background: rgba(255,107,107,0.1);
+    border: 1px solid rgba(255,107,107,0.3);
+    border-radius: 12px;
+    font-size: 12px;
+    color: var(--accent3);
+    line-height: 1.5;
+  }
+
+  /* Copy button */
+  .copy-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 5px 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+
+  .copy-btn:active { color: var(--accent2); }
+
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="logo">Meeting<span>Mind</span></div>
+    <div class="version">v1.0</div>
+  </div>
+
+  <!-- API Key -->
+  <div class="api-section">
+    <div class="api-label">Anthropic API Key</div>
+    <div class="api-row">
+      <input type="password" class="api-input" id="apiKey" placeholder="sk-ant-..." />
+      <button class="api-btn" onclick="saveKey()">Save</button>
+    </div>
+    <div class="api-status" id="apiStatus">Enter your key to enable AI analysis</div>
+  </div>
+
+  <!-- Recording -->
+  <div class="record-card" id="recordCard">
+    <div class="timer" id="timer">00:00</div>
+    <div class="timer-label" id="timerLabel">Ready to record</div>
+
+    <div class="waveform" id="waveform">
+      <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+      <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+      <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+    </div>
+
+    <button class="record-btn idle" id="recordBtn" onclick="toggleRecording()">
+      <svg viewBox="0 0 24 24" fill="white"><circle cx="12" cy="12" r="6"/></svg>
+    </button>
+    <div class="record-hint" id="recordHint">Tap to start recording</div>
+  </div>
+
+  <!-- Transcript -->
+  <div class="transcript-section">
+    <div class="section-label">Transcript / Notes</div>
+    <div class="transcript-box" id="transcriptBox">
+      <textarea id="transcriptInput" placeholder="Your transcript will appear here as you speak, or paste / type notes manually..." rows="6" oninput="onTranscriptChange()"></textarea>
+    </div>
+  </div>
+
+  <!-- Analyze -->
+  <button class="analyze-btn" id="analyzeBtn" onclick="analyzeNotes()" disabled>
+    ✦ Analyze with Claude
+  </button>
+
+  <!-- Error -->
+  <div class="error-msg hidden" id="errorMsg"></div>
+
+  <!-- Results -->
+  <div class="results-section" id="results"></div>
+
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  let apiKey = localStorage.getItem('mm_apikey') || '';
+  let isRecording = false;
+  let mediaRecorder = null;
+  let recognition = null;
+  let timerInterval = null;
+  let seconds = 0;
+  let transcript = '';
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  if (apiKey) {
+    document.getElementById('apiKey').value = apiKey;
+    document.getElementById('apiStatus').textContent = '✓ Key saved';
+    document.getElementById('apiStatus').className = 'api-status ok';
+    checkAnalyzeBtn();
+  }
+
+  function saveKey() {
+    apiKey = document.getElementById('apiKey').value.trim();
+    if (apiKey.startsWith('sk-ant-')) {
+      localStorage.setItem('mm_apikey', apiKey);
+      document.getElementById('apiStatus').textContent = '✓ Key saved';
+      document.getElementById('apiStatus').className = 'api-status ok';
+    } else {
+      document.getElementById('apiStatus').textContent = '✗ Invalid key format';
+      document.getElementById('apiStatus').className = 'api-status';
+    }
+    checkAnalyzeBtn();
+  }
+
+  // ── Timer ──────────────────────────────────────────────────────────────────
+  function startTimer() {
+    seconds = 0;
+    updateTimerDisplay();
+    timerInterval = setInterval(() => {
+      seconds++;
+      updateTimerDisplay();
+    }, 1000);
+  }
+
+  function stopTimer() {
+    clearInterval(timerInterval);
+  }
+
+  function updateTimerDisplay() {
+    const m = String(Math.floor(seconds / 60)).padStart(2, '0');
+    const s = String(seconds % 60).padStart(2, '0');
+    document.getElementById('timer').textContent = `${m}:${s}`;
+  }
+
+  // ── Recording ──────────────────────────────────────────────────────────────
+  function toggleRecording() {
+    isRecording ? stopRecording() : startRecording();
+  }
+
+  async function startRecording() {
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (e) {
+      showError('Microphone access denied. Please allow microphone access in your browser settings.');
+      return;
+    }
+
+    isRecording = true;
+    const btn = document.getElementById('recordBtn');
+    btn.className = 'record-btn recording';
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="white"><rect x="7" y="7" width="10" height="10" rx="2"/></svg>`;
+    document.getElementById('recordHint').textContent = 'Tap to stop';
+    document.getElementById('timerLabel').textContent = 'Recording...';
+    document.getElementById('timer').classList.add('active');
+    document.getElementById('waveform').classList.add('recording');
+    startTimer();
+    clearError();
+
+    // Web Speech API for live transcription
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRec) {
+      recognition = new SpeechRec();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      let finalTranscript = document.getElementById('transcriptInput').value;
+
+      recognition.onresult = (e) => {
+        let interim = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const t = e.results[i].transcript;
+          if (e.results[i].isFinal) {
+            finalTranscript += (finalTranscript ? ' ' : '') + t.trim();
+          } else {
+            interim += t;
+          }
+        }
+        document.getElementById('transcriptInput').value = finalTranscript + (interim ? ' ' + interim : '');
+        checkAnalyzeBtn();
+      };
+
+      recognition.onerror = (e) => {
+        if (e.error !== 'no-speech') {
+          console.warn('Speech recognition error:', e.error);
+        }
+      };
+
+      recognition.start();
+    } else {
+      showError('Live transcription not supported in this browser. You can still type or paste notes below.');
+    }
+  }
+
+  function stopRecording() {
+    isRecording = false;
+    if (recognition) { recognition.stop(); recognition = null; }
+    stopTimer();
+
+    const btn = document.getElementById('recordBtn');
+    btn.className = 'record-btn idle';
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="white"><circle cx="12" cy="12" r="6"/></svg>`;
+    document.getElementById('recordHint').textContent = 'Tap to start recording';
+    document.getElementById('timerLabel').textContent = `Recorded ${document.getElementById('timer').textContent}`;
+    document.getElementById('timer').classList.remove('active');
+    document.getElementById('waveform').classList.remove('recording');
+    checkAnalyzeBtn();
+  }
+
+  function onTranscriptChange() { checkAnalyzeBtn(); }
+
+  function checkAnalyzeBtn() {
+    const hasText = document.getElementById('transcriptInput').value.trim().length > 20;
+    const hasKey = apiKey.startsWith('sk-ant-');
+    document.getElementById('analyzeBtn').disabled = !(hasText && hasKey);
+  }
+
+  // ── Claude Analysis ────────────────────────────────────────────────────────
+  async function analyzeNotes() {
+    const text = document.getElementById('transcriptInput').value.trim();
+    if (!text || !apiKey) return;
+
+    clearError();
+    document.getElementById('results').innerHTML = `
+      <div class="result-card">
+        <div class="loading"><div class="spinner"></div> Claude is analyzing your meeting...</div>
+      </div>`;
+
+    document.getElementById('analyzeBtn').disabled = true;
+
+    const systemPrompt = `You are an expert meeting analyst. Given a meeting transcript or notes, extract structured insights.
+
+Respond ONLY with valid JSON in this exact format:
+{
+  "summary": "2-4 sentence executive summary of the meeting",
+  "key_points": ["point 1", "point 2", "point 3"],
+  "action_items": [
+    {"task": "description of task", "owner": "person or 'TBD'", "due": "timeline or 'TBD'"},
+  ],
+  "decisions": ["decision 1", "decision 2"]
+}`;
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: `Meeting transcript:\n\n${text}` }]
+        })
+      });
+
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message);
+
+      const raw = data.content[0].text;
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('Could not parse Claude response');
+
+      const parsed = JSON.parse(jsonMatch[0]);
+      renderResults(parsed);
+
+    } catch (e) {
+      showError(`Analysis failed: ${e.message}`);
+      document.getElementById('results').innerHTML = '';
+    }
+
+    document.getElementById('analyzeBtn').disabled = false;
+  }
+
+  function renderResults(data) {
+    const resultsEl = document.getElementById('results');
+    resultsEl.innerHTML = '';
+
+    // Summary card
+    const summaryCard = document.createElement('div');
+    summaryCard.className = 'result-card';
+    summaryCard.innerHTML = `
+      <div class="result-header">
+        <div class="result-icon icon-summary">📋</div>
+        <div class="result-title">Summary</div>
+        <button class="copy-btn" onclick="copyText(this, '${escapeAttr(data.summary)}')">⧉ Copy</button>
+      </div>
+      <div class="result-body">
+        <p style="margin-bottom:14px">${data.summary}</p>
+        ${data.key_points?.length ? `
+        <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px">Key Points</div>
+        ${data.key_points.map(p => `<div style="display:flex;gap:8px;padding:4px 0"><span style="color:var(--accent);flex-shrink:0">›</span><span>${p}</span></div>`).join('')}` : ''}
+        ${data.decisions?.length ? `
+        <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);margin:14px 0 10px">Decisions Made</div>
+        ${data.decisions.map(d => `<div style="display:flex;gap:8px;padding:4px 0"><span style="color:var(--accent2);flex-shrink:0">✓</span><span>${d}</span></div>`).join('')}` : ''}
+      </div>`;
+    resultsEl.appendChild(summaryCard);
+
+    // Action items card
+    if (data.action_items?.length) {
+      const actionsCard = document.createElement('div');
+      actionsCard.className = 'result-card';
+      actionsCard.innerHTML = `
+        <div class="result-header">
+          <div class="result-icon icon-actions">⚡</div>
+          <div class="result-title">Action Items (${data.action_items.length})</div>
+        </div>
+        <div class="result-body" style="padding-top:8px;padding-bottom:8px">
+          ${data.action_items.map((item, i) => `
+            <div class="action-item">
+              <div class="action-check" id="chk-${i}" onclick="toggleAction(${i})"></div>
+              <div style="flex:1">
+                <div class="action-text" id="act-${i}">${item.task}</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:3px">
+                  ${item.owner !== 'TBD' ? `<span style="color:var(--accent2)">${item.owner}</span>` : ''}
+                  ${item.owner !== 'TBD' && item.due !== 'TBD' ? ' · ' : ''}
+                  ${item.due !== 'TBD' ? item.due : ''}
+                </div>
+              </div>
+            </div>`).join('')}
+        </div>`;
+      resultsEl.appendChild(actionsCard);
+    }
+  }
+
+  function toggleAction(i) {
+    const chk = document.getElementById(`chk-${i}`);
+    const txt = document.getElementById(`act-${i}`);
+    chk.classList.toggle('done');
+    txt.classList.toggle('done');
+    if (chk.classList.contains('done')) {
+      chk.innerHTML = `<svg width="12" height="12" viewBox="0 0 12 12" fill="white"><polyline points="2,6 5,9 10,3" stroke="white" stroke-width="2" fill="none"/></svg>`;
+    } else {
+      chk.innerHTML = '';
+    }
+  }
+
+  function copyText(btn, text) {
+    navigator.clipboard.writeText(text).then(() => {
+      const orig = btn.textContent;
+      btn.textContent = '✓ Copied';
+      setTimeout(() => btn.textContent = orig, 1500);
+    });
+  }
+
+  function escapeAttr(str) {
+    return (str || '').replace(/'/g, "\\'").replace(/\n/g, ' ');
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = msg;
+    el.classList.remove('hidden');
+  }
+
+  function clearError() {
+    document.getElementById('errorMsg').classList.add('hidden');
+  }
+</script>
+</body>
+</html>
